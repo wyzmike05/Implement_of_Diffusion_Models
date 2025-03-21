@@ -9,9 +9,9 @@ from train_model import train_model
 
 config = {
     "model_depth": 1000,
-    "dataset": "CelebA-HQ",  # "MNIST" or "CIFAR10" or "CelebA-HQ"
-    "batch_size": 4,  # 64 in paper
-    "epochs": 32,  # 1142 in paper
+    "dataset": "MNIST",  # "MNIST" or "CIFAR10" or "CelebA-HQ"
+    "batch_size": 16,  # 64 in paper
+    "epochs": 128,  # 1142 in paper
     "data_dir": os.path.join(os.path.dirname(__file__), "datasets"),
     "model_dir": os.path.join(os.path.dirname(__file__), "models"),
 }
@@ -27,8 +27,8 @@ dataloader, pic_shape = get_dataloader(
 
 unet_config = {
     "pic_shape": pic_shape,
-    "channels": [10, 20, 40, 80, 160],
-    "pe_dim": 256,
+    "channels": [10, 20, 40],
+    "pe_dim": 128,
     "residual": True,
 }
 
@@ -44,7 +44,7 @@ model = DDPMUNet(config["model_depth"], unet_config)
 
 
 LOAD_MODEL = False
-CHECKPOINT = 6  # -1 for no checkpoint
+CHECKPOINT = -1  # -1 for no checkpoint
 if LOAD_MODEL:
     try:
         model.load_state_dict(
@@ -86,4 +86,15 @@ elif CHECKPOINT >= 0:
             "Checkpoint with improper parameters. Please train a new model instead."
         )
 else:
-    train_model(model, dataloader, device, config["model_dir"], config["epochs"])
+    # Delete the models directory and recreate it
+    try:
+        if os.path.exists(config["model_dir"]):
+            for file in os.listdir(config["model_dir"]):
+                file_path = os.path.join(config["model_dir"], file)
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    os.rmdir(file_path)
+    except Exception as e:
+        print(f"Failed to delete {config['model_dir']}. Reason: {e}")
+    train_model(model, dataloader, device, config["model_dir"], config["epochs"], -1)

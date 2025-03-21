@@ -18,7 +18,7 @@ unet_config = config["unet_config"]
 
 model = DDPMUNet(config["model_depth"], unet_config)
 
-test_model = "checkpoint_epoch_0008.pth"  # f"model.pth"
+test_model = "model.pth"  # f"model.pth"
 
 
 try:
@@ -40,7 +40,7 @@ except RuntimeError:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # k samples to generate
-k = 1
+k = 5
 
 
 def img_dec(x):
@@ -51,7 +51,7 @@ model.to(device)
 model.eval()
 with torch.no_grad():
     x_shape = unet_config["pic_shape"]
-    x_shape = [5] + x_shape
+    x_shape = [k] + x_shape
     sample = torch.zeros(x_shape).to(device)
     x_sample = model.sample_backward(sample, random_start=True)
 
@@ -60,8 +60,12 @@ with torch.no_grad():
     for idx in range(k):
         for t in range(len(x_sample)):
             plt.subplot(k, len(x_sample), idx * len(x_sample) + t + 1)
-            pic = x_sample[t][idx].cpu().apply_(img_dec).permute(1, 2, 0)
-            plt.imshow(pic)
+            pic = x_sample[t][idx].cpu().permute(1, 2, 0)
+            pic = img_dec(pic)
+            if config["dataset"] == "MNIST":
+                plt.imshow(pic, cmap="gray")
+            else:
+                plt.imshow(pic)
             plt.axis("off")
     plt.savefig(os.path.join(config["model_dir"], "samples.png"))
     plt.close()
